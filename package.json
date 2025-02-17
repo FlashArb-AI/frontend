@@ -10,7 +10,14 @@
   "author": "",
   "license": "ISC",
   "packageManager": "pnpm@10.4.1",
+  "dependencies": {
+    "big.js": "^6.2.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2"
+  },
   "devDependencies": {
+    "@balancer-labs/v2-interfaces": "0.4.0",
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.0",
     "@nomicfoundation/hardhat-ethers": "^3.0.0",
     "@nomicfoundation/hardhat-ignition": "^0.15.0",
@@ -18,11 +25,13 @@
     "@nomicfoundation/hardhat-network-helpers": "^1.0.0",
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
     "@nomicfoundation/hardhat-verify": "^2.0.0",
+    "@openzeppelin/contracts": "4.9.1",
     "@typechain/ethers-v6": "^0.5.0",
     "@typechain/hardhat": "^9.0.0",
     "@types/chai": "^4.2.0",
     "@types/mocha": ">=9.1.0",
     "@types/node": ">=18.0.0",
+    "@uniswap/v3-periphery": "1.4.4",
     "chai": "^4.2.0",
     "ethers": "^6.4.0",
     "hardhat": "^2.22.18",
