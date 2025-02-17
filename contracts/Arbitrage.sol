@@ -22,8 +22,6 @@ contract Arbitrage is IFlashLoanRecipient {
         uint24 fee;
     }
 
-    event ArbitrageExecuted(address sourceToken, address targetToken, uint256 inputAmount, uint256 minimumReturn);
-
     constructor() {
         owner = msg.sender;
     }
@@ -108,6 +106,5 @@ contract Arbitrage is IFlashLoanRecipient {
 
         // Perform swap
         ISwapRouter(_router).exactInputSingle(params);
-        emit ArbitrageExecuted(_tokenIn, _tokenOut, _swapAmount, _minReturn);
     }
 }
