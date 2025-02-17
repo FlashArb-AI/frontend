@@ -2,6 +2,7 @@ import { ethers } from "ethers";
 import Big from "big.js";
 import { IUniswapV3PoolABI } from "./abi";
 import IERC20 from "@openzeppelin/contracts/build/contracts/ERC20.json";
+import { ISwapRouter as ISwapRouterType } from "../typechain-types/@uniswap/v3-periphery/contracts/interfaces/ISwapRouter"; // Import TypeChain type
 
 // Define types for tokens and exchanges
 interface Token {
@@ -15,7 +16,7 @@ interface Exchange {
     name: string;
     factory: ethers.Contract;
     quoter: ethers.Contract;
-    router: ethers.Contract;
+    router: ISwapRouterType; // Use ISwapRouterType instead of ethers.Contract
 }
 
 // Helper functions
