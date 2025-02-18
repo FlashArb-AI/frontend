@@ -1,12 +1,11 @@
-import { HardhatUserConfig } from "hardhat/config";
-import "@nomicfoundation/hardhat-toolbox";
-import dotenv from "dotenv";
-
-dotenv.config();
+// hardhat.config.ts
+require("hardhat/config");
+require("@nomicfoundation/hardhat-toolbox");
+require("dotenv").config();
 
 const privateKey = process.env.PRIVATE_KEY || "";
 
-const config: HardhatUserConfig = {
+const config = {
   solidity: "0.8.18",
   networks: {
     hardhat: {
@@ -18,4 +17,4 @@ const config: HardhatUserConfig = {
   },
 };
 
-export default config;
+module.exports = config;

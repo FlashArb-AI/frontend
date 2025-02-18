@@ -22,12 +22,12 @@ if (config.PROJECT_SETTINGS.isLocal) {
     provider = new ethers.WebSocketProvider(`wss://sonic-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`)
 }
 
-// Define Shadow exchange
-const shadow = {
-    name: "Shadow V3",
-    factory: new ethers.Contract(config.SHADOW.FACTORY_V3, IUniswapV3Factory.abi, provider),
-    quoter: new ethers.Contract(config.SHADOW.QUOTER_V3, IQuoter.abi, provider),
-    router: new ethers.Contract(config.SHADOW.ROUTER_V3, ISwapRouter.abi, provider)
+// Define Spooky exchange
+const spooky = {
+    name: "Spooky V3",
+    factory: new ethers.Contract(config.SPOOKY.FACTORY_V3, IUniswapV3Factory.abi, provider),
+    quoter: new ethers.Contract(config.SPOOKY.QUOTER_V3, IQuoter.abi, provider),
+    router: new ethers.Contract(config.SPOOKY.ROUTER_V3, ISwapRouter.abi, provider)
 };
 
 // Define Wagmi exchange
@@ -43,7 +43,7 @@ const arbitrage = new ethers.Contract(config.PROJECT_SETTINGS.ARBITRAGE_ADDRESS,
 
 module.exports = {
     provider,
-    shadow,
+    spooky,
     wagmi,
     arbitrage
 }

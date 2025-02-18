@@ -9,7 +9,7 @@
 - [Alchemy](https://www.alchemy.com/) (Blockchain Connection)
 - [Beets](https://docs.beets.fi/) (Flash Loan Provider)
 - [Wagmi V3](https://docs.wagmi.com/wagmi) (Exchange)
-- [Shadow V3](https://docs.shadow.so/) (Exchange)
+- [Spooky V3](https://spooky.fi/) (Exchange)
 
 ## Requirements For Initial Setup
 - Install [NodeJS](https://nodejs.org/en/). We recommend using the latest LTS (Long-Term-Support) version, and preferably installing NodeJS via [NVM](https://github.com/nvm-sh/nvm#intro).
@@ -40,16 +40,16 @@ Copy the private key of the first account provided from the hardhat node, and pa
 
 ### 6. Deploy Smart Contract
 In a separate terminal run:
-`npx hardhat run scripts/deploy.js --network localhost`
+`npx hardhat run scripts/deploy.cjs --network localhost`
 
 Sometimes the deployed address may be different when testing, and therefore you'll need to update the **ARBITRAGE_ADDRESS** inside of the *config.json* 
 
 ### 7. Start the Bot
-`node bot.js`
+`node bot.cjs`
 
 ### 8. Manipulate Price
 In another terminal run:
-`npx hardhat run scripts/manipulate.js --network localhost`
+`npx hardhat run scripts/manipulate.cjs --network localhost`
 
 ## About config.json
 ### PROJECT_SETTINGS
@@ -114,16 +114,16 @@ The *main()* function monitors swap events from both Uniswap V3 & Pancakeswap V3
 
 When a swap event occurs, the *eventHandler()* will be called. Inside of the *eventHandler()* it calls *checkPrice()*, this function will log the current price of the assets on both Uniswap & Pancakeswap, and return the `priceDifference`
 
-Then *determineDirection()* is called, this will determine the direction of the trades, where to buy first, then where to sell. This function will return an array called `exchangePath` in *main()*. The array contains Uniswap & Pancakeswap objects that were created in *initialization.js*. If no array is returned, this means the `priceDifference` returned earlier is not higher than `difference`
+Then *determineDirection()* is called, this will determine the direction of the trades, where to buy first, then where to sell. This function will return an array called `exchangePath` in *main()*. The array contains Uniswap & Pancakeswap objects that were created in *initialization.cjs*. If no array is returned, this means the `priceDifference` returned earlier is not higher than `difference`
 
 If `exchangePath` is not null, then execution moves into *determineProfitability()*. This is where you can set some of your conditions on whether there is a potential arbitrage or not. This function returns either true or false.
 
 If true is returned from *determineProfitability()*, then it calls *executeTrade()* where it makes the call to the arbitrage contract to perform the trade. Afterwards a report is logged, and the bot resumes to monitoring for swap events.
 
 ### Modifying & Testing the Scripts
-Both the *manipulate.js* and *bot.js* has been setup to easily make some modifications easy. Before the main() function in *manipulate.js*, there will be a comment: **// -- CONFIGURE VALUES HERE -- //**. Below that will be some constants you'll be able to modify such as the unlocked account, and the amount of tokens you'll want that account to spent in order to manipulate price (You'll need to adjust this if you are looking to test different pairs).
+Both the *manipulate.cjs* and *bot.cjs* has been setup to easily make some modifications easy. Before the main() function in *manipulate.cjs*, there will be a comment: **// -- CONFIGURE VALUES HERE -- //**. Below that will be some constants you'll be able to modify such as the unlocked account, and the amount of tokens you'll want that account to spent in order to manipulate price (You'll need to adjust this if you are looking to test different pairs).
 
-For *bot.js*, you'd want to take a look at the function near line 132 called *determineProfitability()*. Inside this function you can set your conditions and do your calculations to determine whether you may have a potential profitable trade on your hands. The idea is that the function is to return an object with 2 keys:
+For *bot.cjs*, you'd want to take a look at the function near line 132 called *determineProfitability()*. Inside this function you can set your conditions and do your calculations to determine whether you may have a potential profitable trade on your hands. The idea is that the function is to return an object with 2 keys:
 
 - `isProfitable` (Boolean)
 - `amount` (BigInt)
@@ -132,12 +132,12 @@ For *bot.js*, you'd want to take a look at the function near line 132 called *de
 
 Note if you are doing an arbitrage for a different ERC20 token than the one in the provided (WETH), then you may also need to adjust profitability reporting in the *executeTrade()* function.
 
-Keep in mind, after running the scripts, specifically *manipulate.js*, you may need to restart your hardhat node, and re-deploy contracts to properly retest.
+Keep in mind, after running the scripts, specifically *manipulate.cjs*, you may need to restart your hardhat node, and re-deploy contracts to properly retest.
 
 ### Additional Information
-The *bot.js* script uses helper functions for fetching token pool addresses, calculating price of assets, and fetching liqudity. These functions can be found in the *helper.js* file inside of the helper folder.
+The *bot.cjs* script uses helper functions for fetching token pool addresses, calculating price of assets, and fetching liquidity. These functions can be found in the *helpers.cjs* file inside of the helper folder.
 
-The helper folder also has *server.js* which is responsible for spinning up a local server, and *initialization.js* which is responsible for setting up the blockchain connection, configuring Uniswap/Pancakeswap contracts, etc. 
+The helper folder also has *server.cjs* which is responsible for spinning up a local server, and *initialization.cjs* which is responsible for setting up the blockchain connection, configuring Uniswap/Pancakeswap contracts, etc. 
 
 As you customize parts of the script it's best to refer to [Uniswap documentation](https://docs.uniswap.org/contracts/v3/overview) for a more detail rundown on the protocol and interacting with the V3 exchange.
 
@@ -162,14 +162,14 @@ You'll want to update the quoter, router and factory addresses inside of the *co
 
 ### 3. Change RPC URL
 
-Inside of *initialization.js*, you'll want to update the websocket RPC URL. Example of Polygon:
+Inside of *initialization.cjs*, you'll want to update the websocket RPC URL. Example of Sonic:
 ```
-provider = new ethers.WebSocketProvider(`wss://polygon-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`)
+provider = new ethers.WebSocketProvider(`wss://sonic-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`)
 ```
 
-Inside of *hardhat.config.js*, you'll want to update the forking URL. Example of Polygon:
+Inside of *hardhat.config.cjs*, you'll want to update the forking URL. Example of Sonic:
 ```
-url: `https://polygon-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+url: `https://sonic-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
 ```
 
 ### 4. Changing Arbitrage.sol
@@ -194,4 +194,4 @@ Be sure to check their documentation for latest updates regarding their contract
 
 ### Additional Notes
 
-- If testing out the *manipulate.js* script, you'll also want to update the **UNLOCKED_ACCOUNT** variable and adjust **AMOUNT** as needed.
+- If testing out the *manipulate.cjs* script, you'll also want to update the **UNLOCKED_ACCOUNT** variable and adjust **AMOUNT** as needed.

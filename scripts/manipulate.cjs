@@ -2,13 +2,13 @@ const hre = require("hardhat")
 const config = require('../config.json')
 
 // -- IMPORT HELPER FUNCTIONS & CONFIG -- //
-const { getTokenAndContract, getPoolContract, calculatePrice } = require('../helpers/helpers')
-const { provider, wagmi, shadow } = require('../helpers/initialization.js')
+const { getTokenAndContract, getPoolContract, calculatePrice } = require('../helpers/helpers.cjs')
+const { provider, wagmi, spooky } = require('../helpers/initialization.cjs')
 
 // -- CONFIGURE VALUES HERE -- //
-const EXCHANGE_TO_USE = wagmi; // Use Shadow or Wagmi
-const UNLOCKED_ACCOUNT = "0x5f81Ad8264B6fa7b02D5C0Ee1cc8EaEc5162b00A"; // Account to impersonate
-const AMOUNT = "200"; // Amount of tokens to swap
+const EXCHANGE_TO_USE = wagmi; // Use Spooky or Wagmi
+const UNLOCKED_ACCOUNT = "0xb38A90f14b24ae81Ec0B8f1373694f5B59811D8A"; // Account to impersonate
+const AMOUNT = "100"; // Amount of tokens to swap
 
 async function main() {
     // Fetch contracts

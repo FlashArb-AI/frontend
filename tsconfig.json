@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2020",
-    "module": "ESNext",
+    "module": "CommonJS",
     "moduleResolution": "node",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
@@ -12,18 +12,6 @@
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true
   },
-  "include": [
-    "**/*.ts",
-    "bot.cjs",
-    "scripts/deploy.js",
-    "helpers/server.js",
-    "helpers/initialization.js",
-    "helpers/helpers.js",
-    "helpers/helpers.js",
-    "helpers/abi.js",
-    "scripts/manipulate.js"
-  ],
-  "exclude": [
-    "node_modules"
-  ]
+  "include": ["**/*.ts", "**/*.js", "scripts/manipulate.cjs", "bot.cjs", "hardhat.config.cjs", "helpers/initialization.cjs", "scripts/deploy.cjs", "helpers/server.cjs", "helpers/helpers.cjs", "helpers/abi.cjs"],
+  "exclude": ["node_modules"]
 }

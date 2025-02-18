@@ -8,7 +8,7 @@ const Big = require('big.js')
  * in your own functions you desire here!
  */
 
-const { IUniswapV3Pool } = require('./abi')
+const { IUniswapV3Pool } = require('./abi.cjs')
 const IERC20 = require('@openzeppelin/contracts/build/contracts/ERC20.json')
 
 async function getTokenAndContract(_token0Address, _token1Address, _provider) {
@@ -39,7 +39,7 @@ async function getPoolAddress(_factory, _token0, _token1, _fee) {
 
 async function getPoolContract(_exchange, _token0, _token1, _fee, _provider) {
   const poolAddress = await getPoolAddress(_exchange.factory, _token0, _token1, _fee)
-  const poolABI = _exchange.name === "Uniswap V3" ? IUniswapV3Pool : null
+  const poolABI = _exchange.name === "Spooky V3" ? IUniswapV3Pool : IUniswapV3Pool;
   const pool = new ethers.Contract(poolAddress, poolABI, _provider)
   return pool
 }

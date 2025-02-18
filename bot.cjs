@@ -1,13 +1,13 @@
 // -- HANDLE INITIAL SETUP -- //
 require("dotenv").config()
-require('./helpers/server')
+require('./helpers/server.cjs')
 
 const Big = require('big.js')
 
 const ethers = require("ethers")
 const config = require('./config.json')
-const { getTokenAndContract, getPoolContract, getPoolLiquidity, calculatePrice } = require('./helpers/helpers')
-const { provider, shadow, wagmi, arbitrage } = require('./helpers/initialization')
+const { getTokenAndContract, getPoolContract, getPoolLiquidity, calculatePrice } = require('./helpers/helpers.cjs')
+const { provider, spooky, wagmi, arbitrage } = require('./helpers/initialization.cjs')
 
 // -- CONFIGURATION VALUES HERE -- //
 const ARB_FOR = config.TOKENS.ARB_FOR
@@ -22,12 +22,12 @@ let isExecuting = false
 
 const main = async () => {
     const { token0, token1 } = await getTokenAndContract(ARB_FOR, ARB_AGAINST, provider)
-    const uPool = await getPoolContract(shadow, token0.address, token1.address, POOL_FEE, provider)
+    const uPool = await getPoolContract(spooky, token0.address, token1.address, POOL_FEE, provider)
     const pPool = await getPoolContract(wagmi, token0.address, token1.address, POOL_FEE, provider)
 
     console.log(`Using ${token1.symbol}/${token0.symbol}\n`)
 
-    console.log(`Shadow Pool Address: ${await uPool.getAddress()}`)
+    console.log(`Spooky Pool Address: ${await uPool.getAddress()}`)
     console.log(`Wagmi Pool Address: ${await pPool.getAddress()}\n`)
 
     uPool.on('Swap', () => eventHandler(uPool, pPool, token0, token1))
@@ -83,7 +83,7 @@ const checkPrice = async (_pools, _token0, _token1) => {
 
     console.log(`Current Block: ${currentBlock}`)
     console.log(`-----------------------------------------`)
-    console.log(`SHADOW     | ${_token1.symbol}/${_token0.symbol}\t | ${uFPrice}`)
+    console.log(`SPOOKY     | ${_token1.symbol}/${_token0.symbol}\t | ${uFPrice}`)
     console.log(`WAGMI | ${_token1.symbol}/${_token0.symbol}\t | ${pFPrice}\n`)
     console.log(`Percentage Difference: ${priceDifference}%\n`)
 
@@ -96,16 +96,16 @@ const determineDirection = async (_priceDifference) => {
     if (_priceDifference >= PRICE_DIFFERENCE) {
 
         console.log(`Potential Arbitrage Direction:\n`)
-        console.log(`Buy\t -->\t ${shadow.name}`)
+        console.log(`Buy\t -->\t ${spooky.name}`)
         console.log(`Sell\t -->\t ${wagmi.name}\n`)
-        return [shadow, wagmi]
+        return [spooky, wagmi]
 
     } else if (_priceDifference <= -(PRICE_DIFFERENCE)) {
 
         console.log(`Potential Arbitrage Direction:\n`)
         console.log(`Buy\t -->\t ${wagmi.name}`)
-        console.log(`Sell\t -->\t ${shadow.name}\n`)
-        return [wagmi, shadow]
+        console.log(`Sell\t -->\t ${spooky.name}\n`)
+        return [wagmi, spooky]
 
     } else {
         return null
