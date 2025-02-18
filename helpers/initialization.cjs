@@ -12,7 +12,8 @@ const ethers = require('ethers')
 const config = require('../config.json')
 const IUniswapV3Factory = require('@uniswap/v3-core/artifacts/contracts/interfaces/IUniswapV3Factory.sol/IUniswapV3Factory.json')
 const IQuoter = require('@uniswap/v3-periphery/artifacts/contracts/interfaces/IQuoterV2.sol/IQuoterV2.json')
-const ISwapRouter = require('@uniswap/v3-periphery/artifacts/contracts/interfaces/ISwapRouter.sol/ISwapRouter.json')
+const SpookySwapRouter = require('./IUniswapV3Router02.json')
+const WagmiSwapRouter = require('./SwapRouter02.json')
 
 let provider
 
@@ -27,7 +28,7 @@ const spooky = {
     name: "Spooky V3",
     factory: new ethers.Contract(config.SPOOKY.FACTORY_V3, IUniswapV3Factory.abi, provider),
     quoter: new ethers.Contract(config.SPOOKY.QUOTER_V3, IQuoter.abi, provider),
-    router: new ethers.Contract(config.SPOOKY.ROUTER_V3, ISwapRouter.abi, provider)
+    router: new ethers.Contract(config.SPOOKY.ROUTER_V3, SpookySwapRouter.abi, provider)
 };
 
 // Define Wagmi exchange
@@ -35,7 +36,7 @@ const wagmi = {
     name: "Wagmi V3",
     factory: new ethers.Contract(config.WAGMI.FACTORY_V3, IUniswapV3Factory.abi, provider),
     quoter: new ethers.Contract(config.WAGMI.QUOTER_V3, IQuoter.abi, provider),
-    router: new ethers.Contract(config.WAGMI.ROUTER_V3, ISwapRouter.abi, provider)
+    router: new ethers.Contract(config.WAGMI.ROUTER_V3, WagmiSwapRouter.abi, provider)
 };
 
 const IArbitrage = require('../artifacts/contracts/Arbitrage.sol/Arbitrage.json')
