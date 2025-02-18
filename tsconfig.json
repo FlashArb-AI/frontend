@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
     "target": "ES2020",
-    "module": "commonjs",
+    "module": "ESNext",
+    "moduleResolution": "node",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
@@ -12,7 +13,15 @@
     "allowSyntheticDefaultImports": true
   },
   "include": [
-    "**/*.ts"
+    "**/*.ts",
+    "bot.cjs",
+    "scripts/deploy.js",
+    "helpers/server.js",
+    "helpers/initialization.js",
+    "helpers/helpers.js",
+    "helpers/helpers.js",
+    "helpers/abi.js",
+    "scripts/manipulate.js"
   ],
   "exclude": [
     "node_modules"

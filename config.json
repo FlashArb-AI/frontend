@@ -2,7 +2,7 @@
     "PROJECT_SETTINGS": {
         "isLocal": true,
         "isDeployed": true,
-        "ARBITRAGE_ADDRESS": "0x11bc7C1e163A67a7ED7AFa6FC8F4dDCc25426de1",
+        "ARBITRAGE_ADDRESS": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
         "PRICE_UNITS": 0,
         "PRICE_DIFFERENCE": 0.5,
         "GAS_LIMIT": 600000,
@@ -11,7 +11,8 @@
     "TOKENS": {
         "ARB_FOR": "0x50c42dEAcD8Fc9773493ED674b675bE577f2634b",
         "ARB_AGAINST": "0x039e2fB66102314Ce7b64Ce5Ce3E5183bc94aD38",
-        "POOL_FEE": 500
+        "POOL_FEE": 3000,
+        "TICK_SPACING": 50
     },
     "SHADOW": {
         "QUOTER_V3": "0x219b7ADebc0935a3eC889a148c6924D51A07535A",

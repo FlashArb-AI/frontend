@@ -12,7 +12,7 @@ const config: HardhatUserConfig = {
     hardhat: {
       forking: {
         url: `https://sonic-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
-        blockNumber: 223528000,
+        blockNumber: 8368000,
       },
     },
   },
