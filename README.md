@@ -98,7 +98,7 @@ Inside the *config.json* file, set **isDeployed** to **false** and **isLocal** t
 See step #4 in **Setting Up**
 
 ### 3. Run the bot
-`node bot.js`
+`node bot.cjs`
 
 Keep in mind you'll need to wait for an actual swap event to be triggered before it checks the price.
 
@@ -110,11 +110,11 @@ The bot is essentially composed of 5 functions.
 - *determineProfitability()*
 - *executeTrade()*
 
-The *main()* function monitors swap events from both Uniswap V3 & Pancakeswap V3. 
+The *main()* function monitors swap events from both Uniswap V3 Forks SPooky and Wagmi. 
 
-When a swap event occurs, the *eventHandler()* will be called. Inside of the *eventHandler()* it calls *checkPrice()*, this function will log the current price of the assets on both Uniswap & Pancakeswap, and return the `priceDifference`
+When a swap event occurs, the *eventHandler()* will be called. Inside of the *eventHandler()* it calls *checkPrice()*, this function will log the current price of the assets on both Uniswap V3 Forks SPooky and Wagmi, and return the `priceDifference`
 
-Then *determineDirection()* is called, this will determine the direction of the trades, where to buy first, then where to sell. This function will return an array called `exchangePath` in *main()*. The array contains Uniswap & Pancakeswap objects that were created in *initialization.cjs*. If no array is returned, this means the `priceDifference` returned earlier is not higher than `difference`
+Then *determineDirection()* is called, this will determine the direction of the trades, where to buy first, then where to sell. This function will return an array called `exchangePath` in *main()*. The array contains Uniswap V3 Forks SPooky and Wagmi objects that were created in *initialization.cjs*. If no array is returned, this means the `priceDifference` returned earlier is not higher than `difference`
 
 If `exchangePath` is not null, then execution moves into *determineProfitability()*. This is where you can set some of your conditions on whether there is a potential arbitrage or not. This function returns either true or false.
 
@@ -137,7 +137,7 @@ Keep in mind, after running the scripts, specifically *manipulate.cjs*, you may 
 ### Additional Information
 The *bot.cjs* script uses helper functions for fetching token pool addresses, calculating price of assets, and fetching liquidity. These functions can be found in the *helpers.cjs* file inside of the helper folder.
 
-The helper folder also has *server.cjs* which is responsible for spinning up a local server, and *initialization.cjs* which is responsible for setting up the blockchain connection, configuring Uniswap/Pancakeswap contracts, etc. 
+The helper folder also has *server.cjs* which is responsible for spinning up a local server, and *initialization.cjs* which is responsible for setting up the blockchain connection, configuring both Uniswap V3 Forks SPooky and Wagmi contracts, etc. 
 
 As you customize parts of the script it's best to refer to [Uniswap documentation](https://docs.uniswap.org/contracts/v3/overview) for a more detail rundown on the protocol and interacting with the V3 exchange.
 
