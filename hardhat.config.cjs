@@ -14,6 +14,10 @@ const config = {
         blockNumber: 8368000,
       },
     },
+    mainnet: { 
+      url: `https://sonic-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+      accounts: [privateKey],
+    },
   },
 };
 

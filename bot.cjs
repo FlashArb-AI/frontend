@@ -68,27 +68,33 @@ const eventHandler = async (_uPool, _pPool, _token0, _token1) => {
 }
 
 const checkPrice = async (_pools, _token0, _token1) => {
-    isExecuting = true
+    isExecuting = true;
+    console.log(`Swap Detected, Checking Price...\n`);
 
-    console.log(`Swap Detected, Checking Price...\n`)
+    const currentBlock = await provider.getBlockNumber();
 
-    const currentBlock = await provider.getBlockNumber()
+    const uPrice = await calculatePrice(_pools[0], _token0, _token1);
+    const pPrice = await calculatePrice(_pools[1], _token0, _token1);
 
-    const uPrice = await calculatePrice(_pools[0], _token0, _token1)
-    const pPrice = await calculatePrice(_pools[1], _token0, _token1)
+    console.log(`Raw Prices -> Spooky: ${uPrice}, Wagmi: ${pPrice}`);
 
-    const uFPrice = Number(uPrice).toFixed(UNITS)
-    const pFPrice = Number(pPrice).toFixed(UNITS)
-    const priceDifference = (((uFPrice - pFPrice) / pFPrice) * 100).toFixed(2)
+    if (!uPrice || !pPrice || isNaN(Number(uPrice)) || isNaN(Number(pPrice))) {
+        console.error("Error: One or both pool prices are invalid!");
+        return null;
+    }
 
-    console.log(`Current Block: ${currentBlock}`)
-    console.log(`-----------------------------------------`)
-    console.log(`SPOOKY     | ${_token1.symbol}/${_token0.symbol}\t | ${uFPrice}`)
-    console.log(`WAGMI | ${_token1.symbol}/${_token0.symbol}\t | ${pFPrice}\n`)
-    console.log(`Percentage Difference: ${priceDifference}%\n`)
+    const uFPrice = Number(uPrice).toFixed(UNITS);
+    const pFPrice = Number(pPrice).toFixed(UNITS);
+    const priceDifference = (((uFPrice - pFPrice) / pFPrice) * 100).toFixed(2);
 
-    return priceDifference
-}
+    console.log(`Current Block: ${currentBlock}`);
+    console.log(`-----------------------------------------`);
+    console.log(`SPOOKY     | ${_token1.symbol}/${_token0.symbol} | ${uFPrice}`);
+    console.log(`WAGMI      | ${_token1.symbol}/${_token0.symbol} | ${pFPrice}\n`);
+    console.log(`Percentage Difference: ${priceDifference}%\n`);
+
+    return priceDifference;
+};
 
 const determineDirection = async (_priceDifference) => {
     console.log(`Determining Direction...\n`)

@@ -1,82 +1,112 @@
-const ethers = require("ethers")
-const Big = require('big.js')
+const { ethers } = require("ethers");
+const { Big } = require("big.js");
 
-/**
- * This file could be used for adding functions you
- * may need to call multiple times or as a way to
- * abstract logic from bot.js. Feel free to add
- * in your own functions you desire here!
- */
-
-const { IUniswapV3Pool } = require('./abi.cjs')
-const IERC20 = require('@openzeppelin/contracts/build/contracts/ERC20.json')
+const { IUniswapV3Pool } = require("./abi.cjs");
+const IERC20 = require("@openzeppelin/contracts/build/contracts/ERC20.json");
 
 async function getTokenAndContract(_token0Address, _token1Address, _provider) {
-  const token0Contract = new ethers.Contract(_token0Address, IERC20.abi, _provider)
-  const token1Contract = new ethers.Contract(_token1Address, IERC20.abi, _provider)
+  try {
+    const token0Contract = new ethers.Contract(_token0Address, IERC20.abi, _provider);
+    const token1Contract = new ethers.Contract(_token1Address, IERC20.abi, _provider);
 
-  const token0 = {
-    contract: token0Contract,
-    address: _token0Address,
-    symbol: await token0Contract.symbol(),
-    decimals: await token0Contract.decimals(),
+    const [symbol0, decimals0, symbol1, decimals1] = await Promise.all([
+      token0Contract.symbol(),
+      token0Contract.decimals(),
+      token1Contract.symbol(),
+      token1Contract.decimals(),
+    ]);
+
+    return {
+      token0: {
+        contract: token0Contract,
+        address: _token0Address,
+        symbol: symbol0,
+        decimals: decimals0,
+      },
+      token1: {
+        contract: token1Contract,
+        address: _token1Address,
+        symbol: symbol1,
+        decimals: decimals1,
+      },
+    };
+  } catch (error) {
+    console.error("Error fetching token contracts:", error);
+    throw error;
   }
-
-  const token1 = {
-    contract: token1Contract,
-    address: _token1Address,
-    symbol: await token1Contract.symbol(),
-    decimals: await token1Contract.decimals(),
-  }
-
-  return { token0, token1 }
 }
 
 async function getPoolAddress(_factory, _token0, _token1, _fee) {
-  const poolAddress = await _factory.getPool(_token0, _token1, _fee)
-  return poolAddress
-}
-
-async function getPoolContract(_exchange, _token0, _token1, _fee, _provider) {
-  const poolAddress = await getPoolAddress(_exchange.factory, _token0, _token1, _fee)
-  const poolABI = _exchange.name === "Spooky V3" ? IUniswapV3Pool : IUniswapV3Pool;
-  const pool = new ethers.Contract(poolAddress, poolABI, _provider)
-  return pool
-}
-
-async function getPoolLiquidity(_factory, _token0, _token1, _fee, _provider) {
-  const poolAddress = await getPoolAddress(_factory, _token0.address, _token1.address, _fee)
-
-  const token0Balance = await _token0.contract.balanceOf(poolAddress)
-  const token1Balance = await _token1.contract.balanceOf(poolAddress)
-
-  return [token0Balance, token1Balance]
-}
-
-async function calculatePrice(_pool, _token0, _token1) {
-  // Understanding Uniswap V3 prices
-  // --> https://blog.uniswap.org/uniswap-v3-math-primer
-
-  // Get sqrtPriceX96...
-  const [sqrtPriceX96] = await _pool.slot0()
-
-  // Get decimalDifference if there is a difference...
-  const decimalDifference = Number(Big(_token0.decimals - _token1.decimals).abs())
-  const conversion = Big(10).pow(decimalDifference)
-
-  // Calculate rate and price...
-  const rate = Big((Big(sqrtPriceX96).div(Big(2 ** 96))) ** Big(2))
-  const price = Big(rate).div(Big(conversion)).toString()
-
-  if (price == 0) {
-    return Big(rate).mul(Big(conversion)).toString()
-  } else {
-    return price
+  try {
+    return await _factory.getPool(_token0, _token1, _fee);
+  } catch (error) {
+    console.error("Error getting pool address:", error);
+    throw error;
   }
 }
 
-async function calculateDifference(_uPrice, _sPrice) {
-  return (((_uPrice - _sPrice) / _sPrice) * 100).toFixed(2)
+async function getPoolContract(_exchange, _token0, _token1, _fee, _provider) {
+  try {
+    const poolAddress = await getPoolAddress(_exchange.factory, _token0, _token1, _fee);
+    if (!poolAddress || poolAddress === "0x0000000000000000000000000000000000000000") {
+      throw new Error("Pool not found.");
+    }
+
+    return new ethers.Contract(poolAddress, IUniswapV3Pool, _provider);
+  } catch (error) {
+    console.error("Error getting pool contract:", error);
+    throw error;
+  }
+}
+
+async function getPoolLiquidity(_factory, _token0, _token1, _fee, _provider) {
+  try {
+    const poolAddress = await getPoolAddress(_factory, _token0.address, _token1.address, _fee);
+    const [token0Balance, token1Balance] = await Promise.all([
+      _token0.contract.balanceOf(poolAddress),
+      _token1.contract.balanceOf(poolAddress),
+    ]);
+
+    return [token0Balance, token1Balance];
+  } catch (error) {
+    console.error("Error getting pool liquidity:", error);
+    throw error;
+  }
+}
+
+async function calculatePrice(_pool, _token0, _token1) {
+  try {
+      const [sqrtPriceX96] = await _pool.slot0();
+
+      if (!sqrtPriceX96 || isNaN(Number(sqrtPriceX96))) {
+          console.error("Error: sqrtPriceX96 is invalid:", sqrtPriceX96);
+          return null;
+      }
+
+      const sqrtPrice = Big(sqrtPriceX96.toString());
+      const decimalDifference = Math.abs(Number(_token0.decimals) - Number(_token1.decimals));
+      const conversion = Big(10).pow(decimalDifference);
+
+      const rate = sqrtPrice.div(Big(2).pow(96)).pow(2);
+      const price = rate.div(conversion).toString();
+
+      return price === "0" ? rate.mul(conversion).toString() : price;
+  } catch (error) {
+      console.error("Error calculating price:", error);
+      return null;
+  }
+}
+
+function calculateDifference(_uPrice, _sPrice) {
+  try {
+    const uPrice = Big(_uPrice);
+    const sPrice = Big(_sPrice);
+
+    return uPrice.minus(sPrice).div(sPrice).times(100).toFixed(2);
+  } catch (error) {
+    console.error("Error calculating price difference:", error);
+    throw error;
+  }
 }
 
 module.exports = {
@@ -86,4 +116,4 @@ module.exports = {
   getPoolLiquidity,
   calculatePrice,
   calculateDifference,
-}
+};
