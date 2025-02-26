@@ -38,34 +38,44 @@ const main = async () => {
 
 const eventHandler = async (_uPool, _pPool, _token0, _token1) => {
     if (!isExecuting) {
-        isExecuting = true
+        isExecuting = true;
 
-        const priceDifference = await checkPrice([_uPool, _pPool], _token0, _token1)
-        const exchangePath = await determineDirection(priceDifference)
-
-        if (!exchangePath) {
-            console.log(`No Arbitrage Currently Available\n`)
-            console.log(`-----------------------------------------\n`)
-            isExecuting = false
-            return
+        const priceData = await checkPrice([_uPool, _pPool], _token0, _token1);
+        if (!priceData) {
+            console.log(`Failed to get price data\n`);
+            console.log(`-----------------------------------------\n`);
+            isExecuting = false;
+            return;
         }
 
-        const { isProfitable, amount } = await determineProfitability(exchangePath, _token0, _token1)
+        const arbitrageInfo = await determineDirection(priceData);
+        if (!arbitrageInfo) {
+            console.log(`No Arbitrage Currently Available\n`);
+            console.log(`-----------------------------------------\n`);
+            isExecuting = false;
+            return;
+        }
+
+        const { isProfitable, amount } = await determineProfitability(
+            arbitrageInfo.path,
+            _token0,
+            _token1
+        );
 
         if (!isProfitable) {
-            console.log(`No Arbitrage Currently Available\n`)
-            console.log(`-----------------------------------------\n`)
-            isExecuting = false
-            return
+            console.log(`No Arbitrage Currently Available\n`);
+            console.log(`-----------------------------------------\n`);
+            isExecuting = false;
+            return;
         }
 
-        const receipt = await executeTrade(exchangePath, _token0, _token1, amount)
+        const receipt = await executeTrade(arbitrageInfo.path, _token0, _token1, amount);
 
-        isExecuting = false
+        isExecuting = false;
 
-        console.log("\nWaiting for swap event...\n")
+        console.log("\nWaiting for swap event...\n");
     }
-}
+};
 
 const checkPrice = async (_pools, _token0, _token1) => {
     isExecuting = true;
@@ -85,113 +95,140 @@ const checkPrice = async (_pools, _token0, _token1) => {
 
     const uFPrice = Number(uPrice).toFixed(UNITS);
     const pFPrice = Number(pPrice).toFixed(UNITS);
-    const priceDifference = (((uFPrice - pFPrice) / pFPrice) * 100).toFixed(2);
+    
+    // Calculate both directions
+    const spookyToWagmi = (((pFPrice - uFPrice) / uFPrice) * 100).toFixed(2);
+    const wagmiToSpooky = (((uFPrice - pFPrice) / pFPrice) * 100).toFixed(2);
 
     console.log(`Current Block: ${currentBlock}`);
     console.log(`-----------------------------------------`);
     console.log(`SPOOKY     | ${_token1.symbol}/${_token0.symbol} | ${uFPrice}`);
     console.log(`WAGMI      | ${_token1.symbol}/${_token0.symbol} | ${pFPrice}\n`);
-    console.log(`Percentage Difference: ${priceDifference}%\n`);
+    console.log(`Spooky -> Wagmi Difference: ${spookyToWagmi}%`);
+    console.log(`Wagmi -> Spooky Difference: ${wagmiToSpooky}%\n`);
 
-    return priceDifference;
+    // Return all price info for better decision making
+    return { 
+        spookyToWagmi, 
+        wagmiToSpooky,
+        uFPrice,
+        pFPrice
+    };
 };
 
-const determineDirection = async (_priceDifference) => {
-    console.log(`Determining Direction...\n`)
+const determineDirection = async (priceData) => {
+    console.log(`Determining Direction...\n`);
 
-    if (_priceDifference >= PRICE_DIFFERENCE) {
+    const { spookyToWagmi, wagmiToSpooky } = priceData;
 
-        console.log(`Potential Arbitrage Direction:\n`)
-        console.log(`Buy\t -->\t ${spooky.name}`)
-        console.log(`Sell\t -->\t ${wagmi.name}\n`)
-        return [spooky, wagmi]
-
-    } else if (_priceDifference <= -(PRICE_DIFFERENCE)) {
-
-        console.log(`Potential Arbitrage Direction:\n`)
-        console.log(`Buy\t -->\t ${wagmi.name}`)
-        console.log(`Sell\t -->\t ${spooky.name}\n`)
-        return [wagmi, spooky]
-
-    } else {
-        return null
+    // Check Spooky -> Wagmi direction
+    if (Number(spookyToWagmi) >= PRICE_DIFFERENCE) {
+        console.log(`Potential Arbitrage Direction:\n`);
+        console.log(`Buy\t -->\t ${spooky.name}`);
+        console.log(`Sell\t -->\t ${wagmi.name}\n`);
+        console.log(`Expected Profit: ${spookyToWagmi}%\n`);
+        return { 
+            path: [spooky, wagmi],
+            profitPercentage: spookyToWagmi
+        };
     }
-}
+    // Check Wagmi -> Spooky direction
+    else if (Number(wagmiToSpooky) >= PRICE_DIFFERENCE) {
+        console.log(`Potential Arbitrage Direction:\n`);
+        console.log(`Buy\t -->\t ${wagmi.name}`);
+        console.log(`Sell\t -->\t ${spooky.name}\n`);
+        console.log(`Expected Profit: ${wagmiToSpooky}%\n`);
+        return {
+            path: [wagmi, spooky],
+            profitPercentage: wagmiToSpooky
+        };
+    }
+    // No arbitrage opportunity
+    else {
+        console.log(`No arbitrage opportunity available (threshold: ${PRICE_DIFFERENCE}%)\n`);
+        return null;
+    }
+};
 
 const determineProfitability = async (_exchangePath, _token0, _token1) => {
-    console.log(`Determining Profitability...\n`)
-
-    // This is where you can customize your conditions on whether a profitable trade is possible...
-
-    /**
-     * The helper file has quite a few functions that come in handy
-     * for performing specifc tasks.
-     */
+    console.log(`Determining Profitability...\n`);
 
     try {
-        // Fetch liquidity off of the exchange to buy token1 from
-        const liquidity = await getPoolLiquidity(_exchangePath[0].factory, _token0, _token1, POOL_FEE, provider)
+        const liquidity = await getPoolLiquidity(_exchangePath[0].factory, _token0, _token1, POOL_FEE, provider);
+        console.log(`Pool liquidity for ${_token1.symbol}: ${ethers.formatUnits(liquidity[1], _token1.decimals)}`); // Debug log
 
-        // An example of using a percentage of the liquidity
-        // BigInt doesn't like decimals, so we use Big.js here
-        const percentage = Big(0.5)
-        const minAmount = Big(liquidity[1]).mul(percentage)
+        const percentage = Big(0.001);
+        const minAmount = Big(liquidity[1]).mul(percentage);
+        console.log(`Min amount (raw): ${minAmount.toFixed(0)}`); // Debug log
 
-        // Figure out how much token0 needed for X amount of token1...
+        // Quote: Buy token1 with token0 (exactOutput)
         const quoteExactOutputSingleParams = {
             tokenIn: _token0.address,
             tokenOut: _token1.address,
             fee: POOL_FEE,
-            amount: BigInt(minAmount.round().toFixed(0)),
+            amount: BigInt(minAmount.toFixed(0)), // No rounding
             sqrtPriceLimitX96: 0
-        }
+        };
 
         const [token0Needed] = await _exchangePath[0].quoter.quoteExactOutputSingle.staticCall(
             quoteExactOutputSingleParams
-        )
+        );
 
-        // Figure out how much token0 returned after swapping X amount of token1
+        // Quote: Sell token1 for token0 (exactInput)
         const quoteExactInputSingleParams = {
             tokenIn: _token1.address,
             tokenOut: _token0.address,
             fee: POOL_FEE,
-            amountIn: BigInt(minAmount.round().toFixed(0)),
+            amountIn: BigInt(minAmount.toFixed(0)), // Match bought amount
             sqrtPriceLimitX96: 0
-        }
+        };
 
         const [token0Returned] = await _exchangePath[1].quoter.quoteExactInputSingle.staticCall(
             quoteExactInputSingleParams
-        )
+        );
 
-        const amountIn = ethers.formatUnits(token0Needed, _token0.decimals)
-        const amountOut = ethers.formatUnits(token0Returned, _token0.decimals)
+        const amountIn = ethers.formatUnits(token0Needed, _token0.decimals);
+        const amountOut = ethers.formatUnits(token0Returned, _token0.decimals);
+        //const SLIPPAGE = 0.01; // 1%
+        //const amountOutMin = Number(amountOut) * (1 - SLIPPAGE);
 
-        console.log(`Estimated amount of ${_token0.symbol} needed to buy ${_token1.symbol} on ${_exchangePath[0].name}: ${amountIn}`)
-        console.log(`Estimated amount of ${_token0.symbol} returned after swapping ${_token1.symbol} on ${_exchangePath[1].name}: ${amountOut}\n`)
+        console.log(`Estimated amountIn: ${amountIn}`);
+        console.log(`Estimated amountOut: ${amountOut} (Min after slippage: ${amountOutMin.toFixed(6)})`);
+
+        // Update condition to include slippage
+        //if (Number(amountOut) < Number(amountIn) || amountOutMin < Number(amountIn)) {
+        //    throw new Error("Not enough to pay back flash loan");
+        //}
 
         const amountDifference = amountOut - amountIn
         const estimatedGasCost = GAS_LIMIT * GAS_PRICE
 
+        const gasCostToken0 = estimatedGasCost * amountDifference; // Convert gas cost to token0 terms
+
+        if (Number(amountOut) < (Number(amountIn) + gasCostToken0)) {
+            throw new Error("Not enough to cover gas + loan");
+        }
+        
         // Fetch account
         const account = new ethers.Wallet(process.env.PRIVATE_KEY, provider)
 
-        const ethBalanceBefore = ethers.formatUnits(await provider.getBalance(account.address), 18)
-        const ethBalanceAfter = ethBalanceBefore - estimatedGasCost
+        const sBalanceBefore = ethers.formatUnits(await provider.getBalance(account.address), 18)
+        const sBalanceAfter = sBalanceBefore - estimatedGasCost
 
-        const wethBalanceBefore = Number(ethers.formatUnits(await _token0.contract.balanceOf(account.address), _token0.decimals))
-        const wethBalanceAfter = amountDifference + wethBalanceBefore
-        const wethBalanceDifference = wethBalanceAfter - wethBalanceBefore
+        const wsBalanceBefore = Number(ethers.formatUnits(await _token0.contract.balanceOf(account.address), _token0.decimals))
+        const wsBalanceAfter = amountDifference + wsBalanceBefore
+        const wsBalanceDifference = wsBalanceAfter - wsBalanceBefore
 
         const data = {
-            'ETH Balance Before': ethBalanceBefore,
-            'ETH Balance After': ethBalanceAfter,
-            'ETH Spent (gas)': estimatedGasCost,
+            'S Balance Before': sBalanceBefore,
+            'S Balance After': sBalanceAfter,
+            'S Spent (gas)': estimatedGasCost,
             '-': {},
-            'WETH Balance BEFORE': wethBalanceBefore,
-            'WETH Balance AFTER': wethBalanceAfter,
-            'WETH Gained/Lost': wethBalanceDifference,
+            'WETH Balance BEFORE': wsBalanceBefore,
+            'WETH Balance AFTER': wsBalanceAfter,
+            'WETH Gained/Lost': wsBalanceDifference,
             '-': {},
-            'Total Gained/Lost': wethBalanceDifference - estimatedGasCost
+            'Total Gained/Lost': wsBalanceDifference - estimatedGasCost
         }
 
         console.table(data)
@@ -203,7 +240,7 @@ const determineProfitability = async (_exchangePath, _token0, _token1) => {
             throw new Error("Not enough to pay back flash loan")
         }
 
-        if (Number(ethBalanceAfter) < 0) {
+        if (Number(sBalanceAfter) < 0) {
             throw new Error("Not enough ETH for gas fee")
         }
 
@@ -234,7 +271,7 @@ const executeTrade = async (_exchangePath, _token0, _token1, _amount) => {
 
     // Fetch token balances before
     const tokenBalanceBefore = await _token0.contract.balanceOf(account.address)
-    const ethBalanceBefore = await provider.getBalance(account.address)
+    const sBalanceBefore = await provider.getBalance(account.address)
 
     if (config.PROJECT_SETTINGS.isDeployed) {
         const transaction = await arbitrage.connect(account).executeTrade(
@@ -251,21 +288,21 @@ const executeTrade = async (_exchangePath, _token0, _token1, _amount) => {
 
     // Fetch token balances after
     const tokenBalanceAfter = await _token0.contract.balanceOf(account.address)
-    const ethBalanceAfter = await provider.getBalance(account.address)
+    const sBalanceAfter = await provider.getBalance(account.address)
 
     const tokenBalanceDifference = tokenBalanceAfter - tokenBalanceBefore
-    const ethBalanceDifference = ethBalanceBefore - ethBalanceAfter
+    const sBalanceDifference = sBalanceBefore - sBalanceAfter
 
     const data = {
-        'ETH Balance Before': ethers.formatUnits(ethBalanceBefore, 18),
-        'ETH Balance After': ethers.formatUnits(ethBalanceAfter, 18),
-        'ETH Spent (gas)': ethers.formatUnits(ethBalanceDifference.toString(), 18),
+        'S Balance Before': ethers.formatUnits(sBalanceBefore, 18),
+        'S Balance After': ethers.formatUnits(sBalanceAfter, 18),
+        'S Spent (gas)': ethers.formatUnits(sBalanceDifference.toString(), 18),
         '-': {},
         'WETH Balance BEFORE': ethers.formatUnits(tokenBalanceBefore, _token0.decimals),
         'WETH Balance AFTER': ethers.formatUnits(tokenBalanceAfter, _token0.decimals),
         'WETH Gained/Lost': ethers.formatUnits(tokenBalanceDifference.toString(), _token0.decimals),
         '-': {},
-        'Total Gained/Lost': `${ethers.formatUnits((tokenBalanceDifference - ethBalanceDifference).toString(), _token0.decimals)}`
+        'Total Gained/Lost': `${ethers.formatUnits((tokenBalanceDifference - sBalanceDifference).toString(), _token0.decimals)}`
     }
 
     console.table(data)

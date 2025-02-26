@@ -76,24 +76,24 @@ async function getPoolLiquidity(_factory, _token0, _token1, _fee, _provider) {
 
 async function calculatePrice(_pool, _token0, _token1) {
   try {
-      const [sqrtPriceX96] = await _pool.slot0();
+    const [sqrtPriceX96] = await _pool.slot0();
 
-      if (!sqrtPriceX96 || isNaN(Number(sqrtPriceX96))) {
-          console.error("Error: sqrtPriceX96 is invalid:", sqrtPriceX96);
-          return null;
-      }
-
-      const sqrtPrice = Big(sqrtPriceX96.toString());
-      const decimalDifference = Math.abs(Number(_token0.decimals) - Number(_token1.decimals));
-      const conversion = Big(10).pow(decimalDifference);
-
-      const rate = sqrtPrice.div(Big(2).pow(96)).pow(2);
-      const price = rate.div(conversion).toString();
-
-      return price === "0" ? rate.mul(conversion).toString() : price;
-  } catch (error) {
-      console.error("Error calculating price:", error);
+    if (!sqrtPriceX96 || isNaN(Number(sqrtPriceX96))) {
+      console.error("Error: sqrtPriceX96 is invalid:", sqrtPriceX96);
       return null;
+    }
+
+    const sqrtPrice = Big(sqrtPriceX96.toString());
+    const decimalDifference = Number(_token0.decimals) - Number(_token1.decimals);
+    const conversion = Big(10).pow(decimalDifference);
+
+    const rate = sqrtPrice.div(Big(2).pow(96)).pow(2);
+    const price = rate.mul(conversion).toString();
+
+    return price;
+  } catch (error) {
+    console.error("Error calculating price:", error);
+    return null;
   }
 }
 
