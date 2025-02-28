@@ -86,8 +86,6 @@ const checkPrice = async (_pools, _token0, _token1) => {
     const uPrice = await calculatePrice(_pools[0], _token0, _token1);
     const pPrice = await calculatePrice(_pools[1], _token0, _token1);
 
-    console.log(`Raw Prices -> Spooky: ${uPrice}, Wagmi: ${pPrice}`);
-
     if (!uPrice || !pPrice || isNaN(Number(uPrice)) || isNaN(Number(pPrice))) {
         console.error("Error: One or both pool prices are invalid!");
         return null;
@@ -157,7 +155,7 @@ const determineProfitability = async (_exchangePath, _token0, _token1) => {
         const liquidity = await getPoolLiquidity(_exchangePath[0].factory, _token0, _token1, POOL_FEE, provider);
         console.log(`Pool liquidity for ${_token1.symbol}: ${ethers.formatUnits(liquidity[1], _token1.decimals)}`); // Debug log
 
-        const percentage = Big(0.001);
+        const percentage = Big(0.0001); // 0.01% of pool liquidity
         const minAmount = Big(liquidity[1]).mul(percentage);
         console.log(`Min amount (raw): ${minAmount.toFixed(0)}`); // Debug log
 
@@ -189,19 +187,21 @@ const determineProfitability = async (_exchangePath, _token0, _token1) => {
 
         const amountIn = ethers.formatUnits(token0Needed, _token0.decimals);
         const amountOut = ethers.formatUnits(token0Returned, _token0.decimals);
-        //const SLIPPAGE = 0.01; // 1%
-        //const amountOutMin = Number(amountOut) * (1 - SLIPPAGE);
+
+        // Dynamic slippage
+        const SLIPPAGE = 0.001; // 0.1%
+        const amountOutMin = Number(amountOut) * (1 - SLIPPAGE);
 
         console.log(`Estimated amountIn: ${amountIn}`);
         console.log(`Estimated amountOut: ${amountOut} (Min after slippage: ${amountOutMin.toFixed(6)})`);
 
-        // Update condition to include slippage
-        //if (Number(amountOut) < Number(amountIn) || amountOutMin < Number(amountIn)) {
-        //    throw new Error("Not enough to pay back flash loan");
-        //}
+        // Check profitability with slippage
+        if (Number(amountOut) < Number(amountIn) || amountOutMin < Number(amountIn)) {
+            throw new Error("Not enough to pay back flash loan");
+        }
 
-        const amountDifference = amountOut - amountIn
-        const estimatedGasCost = GAS_LIMIT * GAS_PRICE
+        const amountDifference = amountOut - amountIn;
+        const estimatedGasCost = GAS_LIMIT * GAS_PRICE;
 
         const gasCostToken0 = estimatedGasCost * amountDifference; // Convert gas cost to token0 terms
 
@@ -210,14 +210,14 @@ const determineProfitability = async (_exchangePath, _token0, _token1) => {
         }
         
         // Fetch account
-        const account = new ethers.Wallet(process.env.PRIVATE_KEY, provider)
+        const account = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
 
-        const sBalanceBefore = ethers.formatUnits(await provider.getBalance(account.address), 18)
-        const sBalanceAfter = sBalanceBefore - estimatedGasCost
+        const sBalanceBefore = ethers.formatUnits(await provider.getBalance(account.address), 18);
+        const sBalanceAfter = sBalanceBefore - estimatedGasCost;
 
-        const wsBalanceBefore = Number(ethers.formatUnits(await _token0.contract.balanceOf(account.address), _token0.decimals))
-        const wsBalanceAfter = amountDifference + wsBalanceBefore
-        const wsBalanceDifference = wsBalanceAfter - wsBalanceBefore
+        const wsBalanceBefore = Number(ethers.formatUnits(await _token0.contract.balanceOf(account.address), _token0.decimals));
+        const wsBalanceAfter = amountDifference + wsBalanceBefore;
+        const wsBalanceDifference = wsBalanceAfter - wsBalanceBefore;
 
         const data = {
             'S Balance Before': sBalanceBefore,
@@ -229,29 +229,28 @@ const determineProfitability = async (_exchangePath, _token0, _token1) => {
             'WETH Gained/Lost': wsBalanceDifference,
             '-': {},
             'Total Gained/Lost': wsBalanceDifference - estimatedGasCost
-        }
+        };
 
-        console.table(data)
-        console.log()
+        console.table(data);
+        console.log();
 
         // Setup conditions...
-
         if (Number(amountOut) < Number(amountIn)) {
-            throw new Error("Not enough to pay back flash loan")
+            throw new Error("Not enough to pay back flash loan");
         }
 
         if (Number(sBalanceAfter) < 0) {
-            throw new Error("Not enough ETH for gas fee")
+            throw new Error("Not enough ETH for gas fee");
         }
 
-        return { isProfitable: true, amount: ethers.parseUnits(amountIn, _token0.decimals) }
+        return { isProfitable: true, amount: ethers.parseUnits(amountIn, _token0.decimals) };
 
     } catch (error) {
-        console.log(error)
-        console.log("")
-        return { isProfitable: false, amount: 0 }
+        console.log(error);
+        console.log("");
+        return { isProfitable: false, amount: 0 };
     }
-}
+};
 
 const executeTrade = async (_exchangePath, _token0, _token1, _amount) => {
     console.log(`Attempting Arbitrage...\n`)
