@@ -3,7 +3,8 @@
 ## Technology Stack & Tools
 
 - Solidity (Writing Smart Contract)
-- Javascript (React & Testing)
+- Javascript (Testing)
+- TypeScript (Hardhat Language For Framework)
 - [Hardhat](https://hardhat.org/) (Development Framework)
 - [Ethers.js](https://docs.ethers.io/v5/) (Blockchain Interaction)
 - [Alchemy](https://www.alchemy.com/) (Blockchain Connection)
@@ -176,17 +177,8 @@ url: `https://sonic-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
 You may also need to change the flashloan provider used in the contract to one that is available on your chain of choice. Currently Beets seems to support the following chains:
 - Sonic
 - Fantom
-- Ethereum
-- Arbitrum
 - Optimism
-- Polygon
-- Binance
-- Fraxal
-- Avalanche
-- Mode
-- Gnosis
-- Avalanche
-- Sepolia (Testnet)
+
 
 Be sure to check their documentation for latest updates regarding their contracts and deployment addresses:
 - [Beets Documentation](https://docs.beets.fi/)
