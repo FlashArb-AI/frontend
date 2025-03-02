@@ -69,8 +69,7 @@ const eventHandler = async (_uPool, _pPool, _token0, _token1) => {
             return;
         }
 
-        const receipt = await executeTrade(arbitrageInfo.path, _token0, _token1, amount);
-
+        const receipt = await executeTrade(arbitrageInfo.path, _token0, _token1, amount, { gasLimit: GAS_LIMIT });
         isExecuting = false;
 
         console.log("\nWaiting for swap event...\n");
@@ -155,7 +154,7 @@ const determineProfitability = async (_exchangePath, _token0, _token1) => {
         const liquidity = await getPoolLiquidity(_exchangePath[0].factory, _token0, _token1, POOL_FEE, provider);
         console.log(`Pool liquidity for ${_token1.symbol}: ${ethers.formatUnits(liquidity[1], _token1.decimals)}`); // Debug log
 
-        const percentage = Big(0.0001); // 0.01% of pool liquidity
+        const percentage = Big(0.05); // 5% of pool liquidity
         const minAmount = Big(liquidity[1]).mul(percentage);
         console.log(`Min amount (raw): ${minAmount.toFixed(0)}`); // Debug log
 
@@ -188,24 +187,19 @@ const determineProfitability = async (_exchangePath, _token0, _token1) => {
         const amountIn = ethers.formatUnits(token0Needed, _token0.decimals);
         const amountOut = ethers.formatUnits(token0Returned, _token0.decimals);
 
-        // Dynamic slippage
-        const SLIPPAGE = 0.001; // 0.1%
-        const amountOutMin = Number(amountOut) * (1 - SLIPPAGE);
-
         console.log(`Estimated amountIn: ${amountIn}`);
-        console.log(`Estimated amountOut: ${amountOut} (Min after slippage: ${amountOutMin.toFixed(6)})`);
+        console.log(`Estimated amountOut: ${amountOut}`);
 
-        // Check profitability with slippage
-        if (Number(amountOut) < Number(amountIn) || amountOutMin < Number(amountIn)) {
+        // Check if the trade is profitable
+        if (Number(amountOut) < Number(amountIn)) {
             throw new Error("Not enough to pay back flash loan");
         }
 
         const amountDifference = amountOut - amountIn;
         const estimatedGasCost = GAS_LIMIT * GAS_PRICE;
 
-        const gasCostToken0 = estimatedGasCost * amountDifference; // Convert gas cost to token0 terms
-
-        if (Number(amountOut) < (Number(amountIn) + gasCostToken0)) {
+        // Ensure the profit covers gas costs
+        if (Number(amountOut) < (Number(amountIn) + estimatedGasCost)) {
             throw new Error("Not enough to cover gas + loan");
         }
         
@@ -253,44 +247,63 @@ const determineProfitability = async (_exchangePath, _token0, _token1) => {
 };
 
 const executeTrade = async (_exchangePath, _token0, _token1, _amount) => {
-    console.log(`Attempting Arbitrage...\n`)
+    console.log(`Attempting Arbitrage...\n`);
 
     const routerPath = [
         await _exchangePath[0].router.getAddress(),
         await _exchangePath[1].router.getAddress()
-    ]
+    ];
 
     const tokenPath = [
         _token0.address,
         _token1.address
-    ]
+    ];
 
     // Create Signer
-    const account = new ethers.Wallet(process.env.PRIVATE_KEY, provider)
+    const account = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
 
     // Fetch token balances before
-    const tokenBalanceBefore = await _token0.contract.balanceOf(account.address)
-    const sBalanceBefore = await provider.getBalance(account.address)
+    const tokenBalanceBefore = await _token0.contract.balanceOf(account.address);
+    const sBalanceBefore = await provider.getBalance(account.address);
+
+    console.log(`Account balance: ${ethers.formatUnits(sBalanceBefore, 18)} S`);
 
     if (config.PROJECT_SETTINGS.isDeployed) {
-        const transaction = await arbitrage.connect(account).executeTrade(
-            routerPath,
-            tokenPath,
-            POOL_FEE,
-            _amount
-        )
+        try {
+            // Approve tokens if necessary
+            const token0Contract = new ethers.Contract(_token0.address, IERC20.abi, account);
+            const allowance = await token0Contract.allowance(account.address, arbitrage.address);
+            if (allowance.lt(_amount)) {
+                console.log("Approving tokens...");
+                const tx = await token0Contract.approve(arbitrage.address, _amount);
+                await tx.wait();
+            }
 
-        const receipt = await transaction.wait(0)
+            // Execute trade
+            const transaction = await arbitrage.connect(account).executeTrade(
+                routerPath,
+                tokenPath,
+                POOL_FEE,
+                _amount,
+                { gasLimit: GAS_LIMIT }
+            );
+
+            const receipt = await transaction.wait();
+            console.log("Trade executed successfully:", receipt);
+        } catch (error) {
+            console.error("Error executing trade:", error);
+            throw error; // Re-throw the error to stop further execution
+        }
     }
 
-    console.log(`Trade Complete:\n`)
+    console.log(`Trade Complete:\n`);
 
     // Fetch token balances after
-    const tokenBalanceAfter = await _token0.contract.balanceOf(account.address)
-    const sBalanceAfter = await provider.getBalance(account.address)
+    const tokenBalanceAfter = await _token0.contract.balanceOf(account.address);
+    const sBalanceAfter = await provider.getBalance(account.address);
 
-    const tokenBalanceDifference = tokenBalanceAfter - tokenBalanceBefore
-    const sBalanceDifference = sBalanceBefore - sBalanceAfter
+    const tokenBalanceDifference = tokenBalanceAfter - tokenBalanceBefore;
+    const sBalanceDifference = sBalanceBefore - sBalanceAfter;
 
     const data = {
         'S Balance Before': ethers.formatUnits(sBalanceBefore, 18),
@@ -302,9 +315,9 @@ const executeTrade = async (_exchangePath, _token0, _token1, _amount) => {
         'WETH Gained/Lost': ethers.formatUnits(tokenBalanceDifference.toString(), _token0.decimals),
         '-': {},
         'Total Gained/Lost': `${ethers.formatUnits((tokenBalanceDifference - sBalanceDifference).toString(), _token0.decimals)}`
-    }
+    };
 
-    console.table(data)
-}
+    console.table(data);
+};
 
 main()

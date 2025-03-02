@@ -4,8 +4,8 @@
         "isDeployed": true,
         "ARBITRAGE_ADDRESS": "0xCCc01DB2A5260bBF4767586E89fE4e540cd9954C",
         "PRICE_UNITS": 9,
-        "PRICE_DIFFERENCE": 0.71,
-        "GAS_LIMIT": 300000,
+        "PRICE_DIFFERENCE": 0.75,
+        "GAS_LIMIT": 600000,
         "GAS_PRICE": 0.00000001
     },
     "TOKENS": {
