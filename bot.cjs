@@ -202,10 +202,8 @@ const determineProfitability = async (_exchangePath, _token0, _token1) => {
 
         const amountDifference = amountOut - amountIn;
         const estimatedGasCost = GAS_LIMIT * GAS_PRICE;
-
-        const gasCostToken0 = estimatedGasCost * amountDifference; // Convert gas cost to token0 terms
-
-        if (Number(amountOut) < (Number(amountIn) + gasCostToken0)) {
+        
+        if (Number(amountOut) < (Number(amountIn) + estimatedGasCost)) {
             throw new Error("Not enough to cover gas + loan");
         }
         
