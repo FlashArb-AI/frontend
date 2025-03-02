@@ -154,7 +154,7 @@ const determineProfitability = async (_exchangePath, _token0, _token1) => {
         const liquidity = await getPoolLiquidity(_exchangePath[0].factory, _token0, _token1, POOL_FEE, provider);
         console.log(`Pool liquidity for ${_token1.symbol}: ${ethers.formatUnits(liquidity[1], _token1.decimals)}`); // Debug log
 
-        const percentage = Big(0.0001); // 0.01% of pool liquidity
+        const percentage = Big(0.05); // 5% of pool liquidity
         const minAmount = Big(liquidity[1]).mul(percentage);
         console.log(`Min amount (raw): ${minAmount.toFixed(0)}`); // Debug log
 
@@ -187,21 +187,18 @@ const determineProfitability = async (_exchangePath, _token0, _token1) => {
         const amountIn = ethers.formatUnits(token0Needed, _token0.decimals);
         const amountOut = ethers.formatUnits(token0Returned, _token0.decimals);
 
-        // Dynamic slippage
-        const SLIPPAGE = 0.001; // 0.1%
-        const amountOutMin = Number(amountOut) * (1 - SLIPPAGE);
-
         console.log(`Estimated amountIn: ${amountIn}`);
-        console.log(`Estimated amountOut: ${amountOut} (Min after slippage: ${amountOutMin.toFixed(6)})`);
+        console.log(`Estimated amountOut: ${amountOut}`);
 
-        // Check profitability with slippage
-        if (Number(amountOut) < Number(amountIn) || amountOutMin < Number(amountIn)) {
+        // Check if the trade is profitable
+        if (Number(amountOut) < Number(amountIn)) {
             throw new Error("Not enough to pay back flash loan");
         }
 
         const amountDifference = amountOut - amountIn;
         const estimatedGasCost = GAS_LIMIT * GAS_PRICE;
-        
+
+        // Ensure the profit covers gas costs
         if (Number(amountOut) < (Number(amountIn) + estimatedGasCost)) {
             throw new Error("Not enough to cover gas + loan");
         }
