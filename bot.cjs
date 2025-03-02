@@ -253,44 +253,63 @@ const determineProfitability = async (_exchangePath, _token0, _token1) => {
 };
 
 const executeTrade = async (_exchangePath, _token0, _token1, _amount) => {
-    console.log(`Attempting Arbitrage...\n`)
+    console.log(`Attempting Arbitrage...\n`);
 
     const routerPath = [
         await _exchangePath[0].router.getAddress(),
         await _exchangePath[1].router.getAddress()
-    ]
+    ];
 
     const tokenPath = [
         _token0.address,
         _token1.address
-    ]
+    ];
 
     // Create Signer
-    const account = new ethers.Wallet(process.env.PRIVATE_KEY, provider)
+    const account = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
 
     // Fetch token balances before
-    const tokenBalanceBefore = await _token0.contract.balanceOf(account.address)
-    const sBalanceBefore = await provider.getBalance(account.address)
+    const tokenBalanceBefore = await _token0.contract.balanceOf(account.address);
+    const sBalanceBefore = await provider.getBalance(account.address);
+
+    console.log(`Account balance: ${ethers.formatUnits(sBalanceBefore, 18)} S`);
 
     if (config.PROJECT_SETTINGS.isDeployed) {
-        const transaction = await arbitrage.connect(account).executeTrade(
-            routerPath,
-            tokenPath,
-            POOL_FEE,
-            _amount
-        )
+        try {
+            // Approve tokens if necessary
+            const token0Contract = new ethers.Contract(_token0.address, IERC20.abi, account);
+            const allowance = await token0Contract.allowance(account.address, arbitrage.address);
+            if (allowance.lt(_amount)) {
+                console.log("Approving tokens...");
+                const tx = await token0Contract.approve(arbitrage.address, _amount);
+                await tx.wait();
+            }
 
-        const receipt = await transaction.wait(0)
+            // Execute trade
+            const transaction = await arbitrage.connect(account).executeTrade(
+                routerPath,
+                tokenPath,
+                POOL_FEE,
+                _amount,
+                { gasLimit: GAS_LIMIT }
+            );
+
+            const receipt = await transaction.wait();
+            console.log("Trade executed successfully:", receipt);
+        } catch (error) {
+            console.error("Error executing trade:", error);
+            throw error; // Re-throw the error to stop further execution
+        }
     }
 
-    console.log(`Trade Complete:\n`)
+    console.log(`Trade Complete:\n`);
 
     // Fetch token balances after
-    const tokenBalanceAfter = await _token0.contract.balanceOf(account.address)
-    const sBalanceAfter = await provider.getBalance(account.address)
+    const tokenBalanceAfter = await _token0.contract.balanceOf(account.address);
+    const sBalanceAfter = await provider.getBalance(account.address);
 
-    const tokenBalanceDifference = tokenBalanceAfter - tokenBalanceBefore
-    const sBalanceDifference = sBalanceBefore - sBalanceAfter
+    const tokenBalanceDifference = tokenBalanceAfter - tokenBalanceBefore;
+    const sBalanceDifference = sBalanceBefore - sBalanceAfter;
 
     const data = {
         'S Balance Before': ethers.formatUnits(sBalanceBefore, 18),
@@ -302,9 +321,9 @@ const executeTrade = async (_exchangePath, _token0, _token1, _amount) => {
         'WETH Gained/Lost': ethers.formatUnits(tokenBalanceDifference.toString(), _token0.decimals),
         '-': {},
         'Total Gained/Lost': `${ethers.formatUnits((tokenBalanceDifference - sBalanceDifference).toString(), _token0.decimals)}`
-    }
+    };
 
-    console.table(data)
-}
+    console.table(data);
+};
 
 main()
