@@ -69,8 +69,7 @@ const eventHandler = async (_uPool, _pPool, _token0, _token1) => {
             return;
         }
 
-        const receipt = await executeTrade(arbitrageInfo.path, _token0, _token1, amount);
-
+        const receipt = await executeTrade(arbitrageInfo.path, _token0, _token1, amount, { gasLimit: GAS_LIMIT });
         isExecuting = false;
 
         console.log("\nWaiting for swap event...\n");
