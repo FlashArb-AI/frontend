@@ -21,6 +21,8 @@
     "elliptic": ">=6.6.1"
   },
   "devDependencies": {
+    "esbuild": ">=0.25.0",
+    "ws": ">=7.5.10",
     "@balancer-labs/v2-interfaces": "0.4.0",
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.0",
     "@nomicfoundation/hardhat-ethers": "^3.0.0",
@@ -29,7 +31,7 @@
     "@nomicfoundation/hardhat-network-helpers": "^1.0.0",
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
     "@nomicfoundation/hardhat-verify": "^2.0.0",
-    "@openzeppelin/contracts": "4.9.1",
+    "@openzeppelin/contracts": "4.9.6",
     "@typechain/ethers-v6": "^0.5.0",
     "@typechain/hardhat": "^9.0.0",
     "@types/big.js": "^6.2.2",
