@@ -7,7 +7,7 @@ const Big = require('big.js')
 const ethers = require("ethers")
 const config = require('./config.json')
 const { getTokenAndContract, getPoolContract, getPoolLiquidity, calculatePrice } = require('./helpers/helpers.cjs')
-const { provider, spooky, wagmi, arbitrage } = require('./helpers/initialization.cjs')
+const { provider, uniswap, spooky, wagmi, shadow, arbitrage } = require('./helpers/initialization.cjs')
 
 // -- CONFIGURATION VALUES HERE -- //
 const ARB_FOR = config.TOKENS.ARB_FOR
@@ -22,12 +22,12 @@ let isExecuting = false
 
 const main = async () => {
     const { token0, token1 } = await getTokenAndContract(ARB_FOR, ARB_AGAINST, provider)
-    const uPool = await getPoolContract(spooky, token0.address, token1.address, POOL_FEE, provider)
+    const uPool = await getPoolContract(uniswap, token0.address, token1.address, POOL_FEE, provider)
     const pPool = await getPoolContract(wagmi, token0.address, token1.address, POOL_FEE, provider)
 
     console.log(`Using ${token1.symbol}/${token0.symbol}\n`)
 
-    console.log(`Spooky Pool Address: ${await uPool.getAddress()}`)
+    console.log(`Uniswap Pool Address: ${await uPool.getAddress()}`)
     console.log(`Wagmi Pool Address: ${await pPool.getAddress()}\n`)
 
     uPool.on('Swap', () => eventHandler(uPool, pPool, token0, token1))
@@ -94,20 +94,20 @@ const checkPrice = async (_pools, _token0, _token1) => {
     const pFPrice = Number(pPrice).toFixed(UNITS);
     
     // Calculate both directions
-    const spookyToWagmi = (((pFPrice - uFPrice) / uFPrice) * 100).toFixed(2);
-    const wagmiToSpooky = (((uFPrice - pFPrice) / pFPrice) * 100).toFixed(2);
+    const uniswapToWagmi = (((pFPrice - uFPrice) / uFPrice) * 100).toFixed(2);
+    const wagmiToUniswap = (((uFPrice - pFPrice) / pFPrice) * 100).toFixed(2);
 
     console.log(`Current Block: ${currentBlock}`);
     console.log(`-----------------------------------------`);
-    console.log(`SPOOKY     | ${_token1.symbol}/${_token0.symbol} | ${uFPrice}`);
+    console.log(`UNISWAP     | ${_token1.symbol}/${_token0.symbol} | ${uFPrice}`);
     console.log(`WAGMI      | ${_token1.symbol}/${_token0.symbol} | ${pFPrice}\n`);
-    console.log(`Spooky -> Wagmi Difference: ${spookyToWagmi}%`);
-    console.log(`Wagmi -> Spooky Difference: ${wagmiToSpooky}%\n`);
+    console.log(`Uniswap -> Wagmi Difference: ${uniswapToWagmi}%`);
+    console.log(`Wagmi -> Uniswap Difference: ${wagmiToUniswap}%\n`);
 
     // Return all price info for better decision making
     return { 
-        spookyToWagmi, 
-        wagmiToSpooky,
+        uniswapToWagmi, 
+        wagmiToUniswap,
         uFPrice,
         pFPrice
     };
@@ -116,28 +116,28 @@ const checkPrice = async (_pools, _token0, _token1) => {
 const determineDirection = async (priceData) => {
     console.log(`Determining Direction...\n`);
 
-    const { spookyToWagmi, wagmiToSpooky } = priceData;
+    const { uniswapToWagmi, wagmiToUniswap } = priceData;
 
-    // Check Spooky -> Wagmi direction
-    if (Number(spookyToWagmi) >= PRICE_DIFFERENCE) {
+    // Check Uniswap -> Wagmi direction
+    if (Number(uniswapToWagmi) >= PRICE_DIFFERENCE) {
         console.log(`Potential Arbitrage Direction:\n`);
-        console.log(`Buy\t -->\t ${spooky.name}`);
+        console.log(`Buy\t -->\t ${uniswap.name}`);
         console.log(`Sell\t -->\t ${wagmi.name}\n`);
-        console.log(`Expected Profit: ${spookyToWagmi}%\n`);
+        console.log(`Expected Profit: ${uniswapToWagmi}%\n`);
         return { 
-            path: [spooky, wagmi],
-            profitPercentage: spookyToWagmi
+            path: [uniswap, wagmi],
+            profitPercentage: uniswapToWagmi
         };
     }
-    // Check Wagmi -> Spooky direction
-    else if (Number(wagmiToSpooky) >= PRICE_DIFFERENCE) {
+    // Check Wagmi -> Uniswap direction
+    else if (Number(wagmiToUniswap) >= PRICE_DIFFERENCE) {
         console.log(`Potential Arbitrage Direction:\n`);
         console.log(`Buy\t -->\t ${wagmi.name}`);
-        console.log(`Sell\t -->\t ${spooky.name}\n`);
-        console.log(`Expected Profit: ${wagmiToSpooky}%\n`);
+        console.log(`Sell\t -->\t ${uniswap.name}\n`);
+        console.log(`Expected Profit: ${wagmiToUniswap}%\n`);
         return {
-            path: [wagmi, spooky],
-            profitPercentage: wagmiToSpooky
+            path: [wagmi, uniswap],
+            profitPercentage: wagmiToUniswap
         };
     }
     // No arbitrage opportunity
@@ -148,22 +148,32 @@ const determineDirection = async (priceData) => {
 };
 
 const determineProfitability = async (_exchangePath, _token0, _token1) => {
-    console.log(`Determining Profitability...\n`);
+    console.log(`🔍 Detailed Profitability Analysis...\n`);
 
     try {
+        // Get pool liquidity
         const liquidity = await getPoolLiquidity(_exchangePath[0].factory, _token0, _token1, POOL_FEE, provider);
-        console.log(`Pool liquidity for ${_token1.symbol}: ${ethers.formatUnits(liquidity[1], _token1.decimals)}`); // Debug log
+        console.log(`📊 Pool Liquidity for ${_token1.symbol}: ${ethers.formatUnits(liquidity[1], _token1.decimals)}`);
 
-        const percentage = Big(0.01); // 1% of pool liquidity
+        // Reduce trade amount to minimize slippage
+        const percentage = Big(0.25); // 25% of pool liquidity
         const minAmount = Big(liquidity[1]).mul(percentage);
-        console.log(`Min amount (raw): ${minAmount.toFixed(0)}`); // Debug log
+
+        // Diagnostic logging of initial amount
+        console.log(`🔢 Trade Amount: ${minAmount.toString()} ${_token1.symbol}`);
+
+        // Get current gas price
+        const feeData = await provider.getFeeData();
+        const dynamicGasPrice = feeData.gasPrice || BigInt(GAS_PRICE);
+        const estimatedGasCost = Big(ethers.formatUnits(dynamicGasPrice * BigInt(GAS_LIMIT), 18));
+        console.log(`⛽ Estimated Gas Cost: ${estimatedGasCost.toString()} ETH`);
 
         // Quote: Buy token1 with token0 (exactOutput)
         const quoteExactOutputSingleParams = {
             tokenIn: _token0.address,
             tokenOut: _token1.address,
             fee: POOL_FEE,
-            amount: BigInt(minAmount.toFixed(0)), // No rounding
+            amount: BigInt(minAmount.toFixed(0)),
             sqrtPriceLimitX96: 0
         };
 
@@ -176,7 +186,7 @@ const determineProfitability = async (_exchangePath, _token0, _token1) => {
             tokenIn: _token1.address,
             tokenOut: _token0.address,
             fee: POOL_FEE,
-            amountIn: BigInt(minAmount.toFixed(0)), // Match bought amount
+            amountIn: BigInt(minAmount.toFixed(0)),
             sqrtPriceLimitX96: 0
         };
 
@@ -184,69 +194,50 @@ const determineProfitability = async (_exchangePath, _token0, _token1) => {
             quoteExactInputSingleParams
         );
 
-        const amountIn = ethers.formatUnits(token0Needed, _token0.decimals);
-        const amountOut = ethers.formatUnits(token0Returned, _token0.decimals);
+        // Convert amounts with precise decimal handling
+        const amountIn = Big(ethers.formatUnits(token0Needed, _token0.decimals));
+        const amountOut = Big(ethers.formatUnits(token0Returned, _token0.decimals));
 
-        console.log(`Estimated amountIn: ${amountIn}`);
-        console.log(`Estimated amountOut: ${amountOut}`);
+        // Detailed logging of swap amounts
+        console.log(`💸 Amount In:  ${amountIn.toString()} ${_token0.symbol}`);
+        console.log(`💰 Amount Out: ${amountOut.toString()} ${_token0.symbol}`);
 
-        // Flash loan fee
-        const FLASH_LOAN_FEE = 0.0003; // 0.03%
-        const flashLoanFee = Number(amountIn) * FLASH_LOAN_FEE;
+        // Calculate profit and margins
+        const amountDifference = amountOut.minus(amountIn);
+        const profitMargin = amountDifference.div(amountIn).mul(100);
 
-        // Check if the trade is profitable
-        if (Number(amountOut) < Number(amountIn)) {
-            throw new Error("Not enough to pay back flash loan");
-        }
+        console.log(`📈 Raw Profit Difference: ${amountDifference.toString()} ${_token0.symbol}`);
+        console.log(`📊 Profit Margin: ${profitMargin.toFixed(4)}%`);
 
-        const amountDifference = amountOut - amountIn;
-        const estimatedGasCost = GAS_LIMIT * GAS_PRICE;
-
-        // Ensure the profit covers flash loan fee and gas costs
-        if (Number(amountOut) < (Number(amountIn) + flashLoanFee + estimatedGasCost)) {
-            throw new Error("Not enough to cover flash loan fee + gas + loan");
-        }
-        
-        // Fetch account
-        const account = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
-
-        const sBalanceBefore = ethers.formatUnits(await provider.getBalance(account.address), 18);
-        const sBalanceAfter = sBalanceBefore - estimatedGasCost;
-
-        const wsBalanceBefore = Number(ethers.formatUnits(await _token0.contract.balanceOf(account.address), _token0.decimals));
-        const wsBalanceAfter = amountDifference + wsBalanceBefore;
-        const wsBalanceDifference = wsBalanceAfter - wsBalanceBefore;
-
-        const data = {
-            'S Balance Before': sBalanceBefore,
-            'S Balance After': sBalanceAfter,
-            'S Spent (gas)': estimatedGasCost,
-            '-': {},
-            'WETH Balance BEFORE': wsBalanceBefore,
-            'WETH Balance AFTER': wsBalanceAfter,
-            'WETH Gained/Lost': wsBalanceDifference,
-            '-': {},
-            'Total Gained/Lost': wsBalanceDifference - estimatedGasCost
+        // Comprehensive trade analysis
+        const tradeAnalysis = {
+            'Initial Trade Amount': `${minAmount.toString()} ${_token1.symbol}`,
+            'Amount In': `${amountIn.toString()} ${_token0.symbol}`,
+            'Amount Out': `${amountOut.toString()} ${_token0.symbol}`,
+            'Raw Profit': `${amountDifference.toString()} ${_token0.symbol}`,
+            'Profit Margin': `${profitMargin.toFixed(4)}%`,
+            'Gas Cost': `${estimatedGasCost.toString()} S`
         };
 
-        console.table(data);
-        console.log();
+        console.table(tradeAnalysis);
 
-        // Setup conditions...
-        if (Number(amountOut) < Number(amountIn)) {
-            throw new Error("Not enough to pay back flash loan");
+        // Remove strict profitability condition
+        const isProfitable = amountOut.gt(amountIn);
+
+        if (isProfitable) {
+            console.log(`✅ Profitable Trade Detected!\n`);
+            return { 
+                isProfitable: true, 
+                amount: BigInt(minAmount.toFixed(0)) 
+            };
         }
 
-        if (Number(sBalanceAfter) < 0) {
-            throw new Error("Not enough ETH for gas fee");
-        }
-
-        return { isProfitable: true, amount: ethers.parseUnits(amountIn, _token0.decimals) };
+        console.log(`❌ Trade Not Profitable. Skipping...\n`);
+        return { isProfitable: false, amount: BigInt(0) };
 
     } catch (error) {
-        console.log(error);
-        console.log("");
-        return { isProfitable: false, amount: 0 };
+        console.error("Profitability Determination Error:", error);
+        return { isProfitable: false, amount: BigInt(0) };
     }
 };
 

@@ -14,6 +14,10 @@ const IUniswapV3Factory = require('@uniswap/v3-core/artifacts/contracts/interfac
 const IQuoter = require('@uniswap/v3-periphery/artifacts/contracts/interfaces/IQuoterV2.sol/IQuoterV2.json')
 const SpookySwapRouter = require('./IUniswapV3Router02.json')
 const WagmiSwapRouter = require('./SwapRouter02.json')
+const UniswapSwapRouter = require('./SwapRouter02.json')
+const ShadowSwapRouter = require('./ShadowRouter.json')
+const RamsesV3Factory = require('./RamsesV3Factory.json')
+const WagmiSwapRouter0 = require('./SwapRouter.json')
 
 let provider
 
@@ -23,6 +27,13 @@ if (config.PROJECT_SETTINGS.isLocal) {
     provider = new ethers.WebSocketProvider(`wss://sonic-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`)
 }
 
+// Define Uniswap exchange
+const uniswap = {
+    name: "Uniswap V3",
+    factory: new ethers.Contract(config.UNISWAP.FACTORY_V3, IUniswapV3Factory.abi, provider),
+    quoter: new ethers.Contract(config.UNISWAP.QUOTER_V3, IQuoter.abi, provider),
+    router: new ethers.Contract(config.UNISWAP.ROUTER_V3, UniswapSwapRouter.abi, provider)
+}
 // Define Spooky exchange
 const spooky = {
     name: "Spooky V3",
@@ -39,12 +50,22 @@ const wagmi = {
     router: new ethers.Contract(config.WAGMI.ROUTER_V3, WagmiSwapRouter.abi, provider)
 };
 
+// Define Shadow exchange
+const shadow = {
+    name: "Shadow V3",
+    factory: new ethers.Contract(config.SHADOW.FACTORY_V3, RamsesV3Factory.abi, provider),
+    quoter: new ethers.Contract(config.SHADOW.QUOTER_V3, IQuoter.abi, provider),
+    router: new ethers.Contract(config.SHADOW.ROUTER_V3, ShadowSwapRouter.abi, provider)
+};
+
 const IArbitrage = require('../artifacts/contracts/Arbitrage.sol/Arbitrage.json')
 const arbitrage = new ethers.Contract(config.PROJECT_SETTINGS.ARBITRAGE_ADDRESS, IArbitrage.abi, provider)
 
 module.exports = {
     provider,
+    uniswap,
     spooky,
     wagmi,
+    shadow,
     arbitrage
 }
