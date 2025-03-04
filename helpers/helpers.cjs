@@ -1,7 +1,7 @@
 const { ethers } = require("ethers");
 const { Big } = require("big.js");
 
-const { IUniswapV3Pool } = require("./abi.cjs");
+const { IUniswapV3Pool, RamsesV3Factory } = require("./abi.cjs");
 const IERC20 = require("@openzeppelin/contracts/build/contracts/ERC20.json");
 
 async function getTokenAndContract(_token0Address, _token1Address, _provider) {
