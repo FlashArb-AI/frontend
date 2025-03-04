@@ -154,7 +154,7 @@ const determineProfitability = async (_exchangePath, _token0, _token1) => {
         const liquidity = await getPoolLiquidity(_exchangePath[0].factory, _token0, _token1, POOL_FEE, provider);
         console.log(`Pool liquidity for ${_token1.symbol}: ${ethers.formatUnits(liquidity[1], _token1.decimals)}`); // Debug log
 
-        const percentage = Big(0.05); // 5% of pool liquidity
+        const percentage = Big(0.01); // 1% of pool liquidity
         const minAmount = Big(liquidity[1]).mul(percentage);
         console.log(`Min amount (raw): ${minAmount.toFixed(0)}`); // Debug log
 
@@ -190,6 +190,10 @@ const determineProfitability = async (_exchangePath, _token0, _token1) => {
         console.log(`Estimated amountIn: ${amountIn}`);
         console.log(`Estimated amountOut: ${amountOut}`);
 
+        // Flash loan fee
+        const FLASH_LOAN_FEE = 0.0003; // 0.03%
+        const flashLoanFee = Number(amountIn) * FLASH_LOAN_FEE;
+
         // Check if the trade is profitable
         if (Number(amountOut) < Number(amountIn)) {
             throw new Error("Not enough to pay back flash loan");
@@ -198,9 +202,9 @@ const determineProfitability = async (_exchangePath, _token0, _token1) => {
         const amountDifference = amountOut - amountIn;
         const estimatedGasCost = GAS_LIMIT * GAS_PRICE;
 
-        // Ensure the profit covers gas costs
-        if (Number(amountOut) < (Number(amountIn) + estimatedGasCost)) {
-            throw new Error("Not enough to cover gas + loan");
+        // Ensure the profit covers flash loan fee and gas costs
+        if (Number(amountOut) < (Number(amountIn) + flashLoanFee + estimatedGasCost)) {
+            throw new Error("Not enough to cover flash loan fee + gas + loan");
         }
         
         // Fetch account
